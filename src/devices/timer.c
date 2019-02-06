@@ -21,6 +21,9 @@
 /* Number of timer ticks since OS booted. */
 static int64_t ticks;
 
+/* The semaphore used for threads to wait */
+static struct semaphore sleep_sema;
+
 /* Number of loops per timer tick.
    Initialized by timer_calibrate(). */
 static unsigned loops_per_tick;
@@ -38,6 +41,7 @@ timer_init (void)
 {
   pit_configure_channel (0, 2, TIMER_FREQ);
   intr_register_ext (0x20, timer_interrupt, "8254 Timer");
+  sema_init(&sleep_sema,0);
 }
 
 /* Calibrates loops_per_tick, used to implement brief delays. */
@@ -93,8 +97,8 @@ timer_sleep (int64_t ticks)
   int64_t start = timer_ticks ();
 
   ASSERT (intr_get_level () == INTR_ON);
-  while (timer_elapsed (start) < ticks) 
-    thread_yield ();
+  thread_set_wakeup_tick(start+ticks);
+  sema_sleep(&sleep_sema);
 }
 
 /* Sleeps for approximately MS milliseconds.  Interrupts must be
@@ -173,6 +177,7 @@ timer_interrupt (struct intr_frame *args UNUSED)
 {
   ticks++;
   thread_tick ();
+  sema_wake(&sleep_sema,ticks);
 }
 
 /* Returns true if LOOPS iterations waits for more than one timer

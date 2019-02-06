@@ -4,6 +4,7 @@
 #include <debug.h>
 #include <list.h>
 #include <stdint.h>
+#include <inttypes.h>
 
 /* States in a thread's life cycle. */
 enum thread_status
@@ -93,6 +94,8 @@ struct thread
     /* Shared between thread.c and synch.c. */
     struct list_elem elem;              /* List element. */
 
+    int64_t wakeup_tick;               /* Tick at which thread will wake up. */
+
 #ifdef USERPROG
     /* Owned by userprog/process.c. */
     uint32_t *pagedir;                  /* Page directory. */
@@ -137,5 +140,9 @@ int thread_get_nice (void);
 void thread_set_nice (int);
 int thread_get_recent_cpu (void);
 int thread_get_load_avg (void);
+
+void thread_set_wakeup_tick(int64_t);
+int64_t thread_get_wakeup_tick(void);
+bool thread_try_wakeup(struct thread *,int64_t);
 
 #endif /* threads/thread.h */

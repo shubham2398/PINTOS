@@ -376,6 +376,32 @@ thread_get_recent_cpu (void)
   /* Not yet implemented. */
   return 0;
 }
+
+/* Sets current thread's wake up tick value to TICK i.e. thread will wake up after timer ticks equals TICK*/
+void
+thread_set_wakeup_tick(int64_t tick)
+{
+  thread_current ()->wakeup_tick = tick;
+}
+
+/* Returns current thread's wake up tick value. */
+int64_t
+thread_get_wakeup_tick(void){
+  return thread_current ()->wakeup_tick;
+}
+
+/* Returns true if thread T can be waked based on current TICK else false 
+   and then changes wakeup_tick of thread T back to zero as thread will wake. */
+bool
+thread_try_wakeup(struct thread * t, int64_t tick){
+  if(t->wakeup_tick <= tick)
+  {
+    t->wakeup_tick = 0;
+    return true;
+  }
+  return false;
+}
+
 
 /* Idle thread.  Executes when no other thread is ready to run.
 

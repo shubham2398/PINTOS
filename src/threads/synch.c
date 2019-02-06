@@ -27,6 +27,7 @@
 */
 
 #include "threads/synch.h"
+#include <inttypes.h>
 #include <stdio.h>
 #include <string.h>
 #include <stdarg.h>
@@ -73,6 +74,54 @@ sema_down (struct semaphore *sema)
       thread_block ();
     }
   sema->value--;
+  intr_set_level (old_level);
+}
+
+/* Makes the current thread sleep on the wait list of SEMA until
+   some other thread wakes it using sema_wake */
+void sema_sleep(struct semaphore *sema)
+{
+  enum intr_level old_level;
+
+  ASSERT (sema != NULL);
+  ASSERT (!intr_context ());
+
+  old_level = intr_disable ();
+  list_push_back (&sema->waiters, &thread_current ()->elem);
+  thread_block ();
+
+  intr_set_level (old_level);
+}
+
+/* Wakes up all threads which can be woken up at TICKS tick. */
+void sema_wake(struct semaphore *sema, int64_t ticks)
+{
+  enum intr_level old_level;
+
+  ASSERT (sema != NULL);
+
+  old_level = intr_disable ();
+  if (!list_empty (&sema->waiters))
+  {
+    struct list_elem *e = list_head (&sema->waiters);
+    struct list_elem *temp;
+    e = list_next (e);
+    while (e != list_end (&sema->waiters)) 
+    { 
+      bool success = thread_try_wakeup (list_entry (e,struct thread,elem),ticks);
+      if(success)
+      { 
+        temp = e;
+        e = list_next (e);
+        list_remove (temp);
+        thread_unblock(list_entry(temp,struct thread,elem));
+      }
+      else
+      {
+        e = list_next (e);
+      }
+    }
+  } 
   intr_set_level (old_level);
 }
 
