@@ -1,4 +1,5 @@
 #include "list.h"
+#include "threads/thread.h"
 #include "../debug.h"
 
 /* Our doubly linked lists have two header elements: the "head"
@@ -175,6 +176,41 @@ list_insert (struct list_elem *before, struct list_elem *elem)
   elem->next = before;
   before->prev->next = elem;
   before->prev = elem;
+}
+
+/* Inserts ELEM in the ready_list according to its priority, with the most
+   prioritised element as the first element of the list and so on and yields
+   the thread if the priority of the added thread is greater than the current
+   running thread.*/
+void
+list_insert_priority_and_yield(struct list *list, struct list_elem *l_elem)
+{
+  list_insert_priority(list, l_elem);
+ //  if((list_entry(l_elem, struct thread, elem))->priority < thread_current()->priority)
+ //  	{
+ //  	  //printf("Hello\n");
+	//   thread_yield();
+	// }
+}
+
+/* Inserts ELEM in the LIST list according to its priority, with the most
+   prioritised element as the first element of the list and so on. */
+void
+list_insert_priority (struct list *list, struct list_elem *l_elem)
+{
+  ASSERT (list != NULL);
+  ASSERT (l_elem != NULL);
+  if (list_empty(list))
+  {
+    list_push_front (list, l_elem);
+    return;
+  }
+  struct list_elem *current = list_begin(list);
+  while(!is_tail(current) && thread_get_priority_of(list_entry(current, struct thread, elem))>=thread_get_priority_of(list_entry(l_elem, struct thread, elem)))
+  {
+  	current = list_next(current);
+  }
+  list_insert(current, l_elem);
 }
 
 /* Removes elements FIRST though LAST (exclusive) from their
