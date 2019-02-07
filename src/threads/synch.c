@@ -115,6 +115,8 @@ void sema_wake(struct semaphore *sema, int64_t ticks)
         e = list_next (e);
         list_remove (temp);
         thread_unblock(list_entry(temp,struct thread,elem));
+        if(thread_get_priority() < thread_get_priority_of(list_entry(temp,struct thread,elem)))
+          intr_yield_on_return();
       }
       else
       {
@@ -163,10 +165,16 @@ sema_up (struct semaphore *sema)
   ASSERT (sema != NULL);
 
   old_level = intr_disable ();
+  struct thread* t=NULL;
   if (!list_empty (&sema->waiters)) 
-    thread_unblock (list_entry (list_pop_front (&sema->waiters),
-                                struct thread, elem));
+  {
+    t =list_entry (list_pop_front (&sema->waiters),
+                                struct thread, elem);
+    thread_unblock (t);
+  }
   sema->value++;
+  if(t!=NULL && thread_get_priority_of(t)>thread_get_priority())
+    thread_yield();
   intr_set_level (old_level);
 }
 

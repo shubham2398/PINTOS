@@ -178,21 +178,6 @@ list_insert (struct list_elem *before, struct list_elem *elem)
   before->prev = elem;
 }
 
-/* Inserts ELEM in the ready_list according to its priority, with the most
-   prioritised element as the first element of the list and so on and yields
-   the thread if the priority of the added thread is greater than the current
-   running thread.*/
-void
-list_insert_priority_and_yield(struct list *list, struct list_elem *l_elem)
-{
-  list_insert_priority(list, l_elem);
- //  if((list_entry(l_elem, struct thread, elem))->priority < thread_current()->priority)
- //  	{
- //  	  //printf("Hello\n");
-	//   thread_yield();
-	// }
-}
-
 /* Inserts ELEM in the LIST list according to its priority, with the most
    prioritised element as the first element of the list and so on. */
 void
