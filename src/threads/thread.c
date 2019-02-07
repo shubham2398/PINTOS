@@ -40,11 +40,11 @@ static struct lock tid_lock;
 
 /* Stack frame for kernel_thread(). */
 struct kernel_thread_frame 
-  {
+{
     void *eip;                  /* Return address. */
     thread_func *function;      /* Function to call. */
     void *aux;                  /* Auxiliary data for function. */
-  };
+};
 
 /* Statistics. */
 static long long idle_ticks;    /* # of timer ticks spent idle. */
@@ -145,7 +145,7 @@ void
 thread_print_stats (void) 
 {
   printf ("Thread: %lld idle ticks, %lld kernel ticks, %lld user ticks\n",
-          idle_ticks, kernel_ticks, user_ticks);
+    idle_ticks, kernel_ticks, user_ticks);
 }
 
 /* Creates a new kernel thread named NAME with the given initial
@@ -165,7 +165,7 @@ thread_print_stats (void)
    Priority scheduling is the goal of Problem 1-3. */
 tid_t
 thread_create (const char *name, int priority,
-               thread_func *function, void *aux) 
+ thread_func *function, void *aux) 
 {
   struct thread *t;
   struct kernel_thread_frame *kf;
@@ -327,11 +327,11 @@ thread_foreach (thread_action_func *func, void *aux)
   ASSERT (intr_get_level () == INTR_OFF);
 
   for (e = list_begin (&all_list); e != list_end (&all_list);
-       e = list_next (e))
-    {
-      struct thread *t = list_entry (e, struct thread, allelem);
-      func (t, aux);
-    }
+   e = list_next (e))
+  {
+    struct thread *t = list_entry (e, struct thread, allelem);
+    func (t, aux);
+  }
 }
 
 /* Sets the current thread's priority to NEW_PRIORITY and yields the current
@@ -341,23 +341,62 @@ void
 thread_set_priority (int new_priority) 
 {
   thread_current ()->priority = new_priority;
+  thread_current ()->curr_priority = new_priority;
 
   if((list_entry(list_begin(&ready_list), struct thread, elem))->priority > new_priority)
     thread_yield();
 }
 
-/* Returns the current thread's priority. */
+/* Returns the current thread's highest priority. */
 int
 thread_get_priority (void) 
 {
-  return thread_current ()->priority;
+  return thread_current ()->curr_priority;
 }
 
-/* Returns the T thread's priority. */
+/* Returns the T thread's highest priority. */
 int
 thread_get_priority_of (struct thread *t) 
 {
-  return t->priority;
+  return t->curr_priority;
+}
+
+/* The thread t1 recursively donataes its priority to the thread t2 and all other 
+   threads to whom t2 has donated its priority*/
+void
+thread_donate_priority (struct thread *t1, struct thread *t2)
+{
+  t2 -> curr_priority = thread_get_priority_of(t1);
+  list_push_back (&t1->donation_g_list, &t2->elem);
+  list_push_back (&t2->donation_r_list, &t1->elem);
+  
+  struct list_elem *e = list_begin (&t1->donation_g_list);
+  
+  while (e != list_end (&t1->donation_g_list)) 
+  { 
+    thread_donate_priority (t2, list_entry(e, struct thread, elem));
+    e = list_next (e);
+  }
+}
+
+void thread_release_donated_priority (struct thread *t1, struct thread *t2) {
+  struct list_elem *e = list_begin (&t1->donation_g_list);
+  
+  while (list_entry(e, struct thread, elem)->tid != t2->tid && e != list_end (&t1->donation_g_list)) {
+    e = list_next (e);
+  }
+
+  list_remove(e);
+}
+
+void
+thread_release_priority (struct thread *t) {
+  t -> curr_priority = t -> priority;
+  while (!list_empty (&t1->donation_r_list))
+  {
+    struct list_elem *e = list_pop_front (&t1->donation_r_list);
+    thread_release_donated_priority(list_entry(e, struct thread, elem), t);
+  }
 }
 
 /* Sets the current thread's nice value to NICE. */
@@ -434,10 +473,10 @@ idle (void *idle_started_ UNUSED)
   sema_up (idle_started);
 
   for (;;) 
-    {
+  {
       /* Let someone else run. */
-      intr_disable ();
-      thread_block ();
+    intr_disable ();
+    thread_block ();
 
       /* Re-enable interrupts and wait for the next one.
 
@@ -451,8 +490,8 @@ idle (void *idle_started_ UNUSED)
 
          See [IA32-v2a] "HLT", [IA32-v2b] "STI", and [IA32-v3a]
          7.11.1 "HLT Instruction". */
-      asm volatile ("sti; hlt" : : : "memory");
-    }
+    asm volatile ("sti; hlt" : : : "memory");
+  }
 }
 
 /* Function used as the basis for a kernel thread. */
@@ -503,11 +542,15 @@ init_thread (struct thread *t, const char *name, int priority)
   strlcpy (t->name, name, sizeof t->name);
   t->stack = (uint8_t *) t + PGSIZE;
   t->priority = priority;
+  t->curr_priority = priority;
   t->magic = THREAD_MAGIC;
 
   old_level = intr_disable ();
   list_push_back (&all_list, &t->allelem);
   intr_set_level (old_level);
+
+  list_init(&t->donation_r_list);
+  list_init(&t->donation_g_list);
 }
 
 /* Allocates a SIZE-byte frame at the top of thread T's stack and
@@ -577,10 +620,10 @@ thread_schedule_tail (struct thread *prev)
      initial_thread because its memory was not obtained via
      palloc().) */
   if (prev != NULL && prev->status == THREAD_DYING && prev != initial_thread) 
-    {
-      ASSERT (prev != cur);
-      palloc_free_page (prev);
-    }
+  {
+    ASSERT (prev != cur);
+    palloc_free_page (prev);
+  }
 }
 
 /* Schedules a new process.  At entry, interrupts must be off and
