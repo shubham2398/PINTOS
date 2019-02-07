@@ -361,41 +361,57 @@ thread_get_priority_of (struct thread *t)
   return t->curr_priority;
 }
 
-/* The thread t1 recursively donataes its priority to the thread t2 and all other 
+/* The thread t1 recursively donates its priority to the thread t2 and all other 
    threads to whom t2 has donated its priority*/
 void
 thread_donate_priority (struct thread *t1, struct thread *t2)
 {
   t2 -> curr_priority = thread_get_priority_of(t1);
-  list_push_back (&t1->donation_g_list, &t2->elem);
-  list_push_back (&t2->donation_r_list, &t1->elem);
+  t1 -> donation_g_list = node_push_back(t1 -> donation_g_list, t2);
+  t2 -> donation_r_list = node_push_back(t2 -> donation_r_list, t1);
   
-  struct list_elem *e = list_begin (&t1->donation_g_list);
-  
-  while (e != list_end (&t1->donation_g_list)) 
+  struct Node *ptr = t2 -> donation_g_list;
+
+  while (ptr != NULL) 
   { 
-    thread_donate_priority (t2, list_entry(e, struct thread, elem));
-    e = list_next (e);
+    thread_donate_priority (t2, ptr->t);
+    ptr = ptr->next;
   }
+  enum intr_level old_level;
+  old_level = intr_disable();
+
+  list_remove(&t2->elem);
+  list_insert_priority(&ready_list,&t2->elem);
+
+  intr_set_level(old_level); 
 }
 
-void thread_release_donated_priority (struct thread *t1, struct thread *t2) {
-  struct list_elem *e = list_begin (&t1->donation_g_list);
-  
-  while (list_entry(e, struct thread, elem)->tid != t2->tid && e != list_end (&t1->donation_g_list)) {
-    e = list_next (e);
+void 
+thread_release_donated_priority (struct thread *t1, struct thread *t2) {
+  struct Node *ptr = t1->donation_g_list;
+
+  if (ptr!=NULL) {
+    if(ptr->next == NULL && ptr->t->tid == t2->tid) {
+      t1->donation_g_list = NULL;
+      return;
+    }
+
+    while(ptr->next!=NULL && ptr->next->t->tid != t2->tid) {
+      ptr = ptr->next;
+    }
+    ptr->next = ptr->next->next;
   }
 
-  list_remove(e);
 }
 
 void
 thread_release_priority (struct thread *t) {
   t -> curr_priority = t -> priority;
-  while (!list_empty (&t1->donation_r_list))
+  struct Node *ptr = t->donation_r_list;
+  while (ptr != NULL)
   {
-    struct list_elem *e = list_pop_front (&t1->donation_r_list);
-    thread_release_donated_priority(list_entry(e, struct thread, elem), t);
+    struct Node *nptr = node_pop_front (&ptr);
+    thread_release_donated_priority(nptr->t, t);
   }
 }
 
@@ -549,8 +565,8 @@ init_thread (struct thread *t, const char *name, int priority)
   list_push_back (&all_list, &t->allelem);
   intr_set_level (old_level);
 
-  list_init(&t->donation_r_list);
-  list_init(&t->donation_g_list);
+  t->donation_r_list = NULL;
+  t->donation_g_list = NULL;
 }
 
 /* Allocates a SIZE-byte frame at the top of thread T's stack and

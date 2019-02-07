@@ -5,6 +5,7 @@
 #include <list.h>
 #include <stdint.h>
 #include <inttypes.h>
+#include "threads/int_list.h"
 
 /* States in a thread's life cycle. */
 enum thread_status
@@ -94,12 +95,11 @@ struct thread
 
     /* Shared between thread.c and synch.c. */
     struct list_elem elem;              /* List element. */
-    struct list_elem elem;              /* List element. */
 
     int64_t wakeup_tick;                /* Tick at which thread will wake up. */
 
-    struct list donation_g_list;           /* List of threads to whom donation is given */
-    struct list donation_r_list;           /* List of threads from whom donation is received */
+    struct Node *donation_g_list;           /* List of threads to whom donation is given */
+    struct Node *donation_r_list;           /* List of threads from whom donation is received */
 
 
 #ifdef USERPROG
@@ -144,6 +144,8 @@ int thread_get_priority (void);
 int thread_get_priority_of (struct thread *);
 void thread_set_priority (int);
 void thread_donate_priority (struct thread *, struct thread *);
+void thread_release_donated_priority (struct thread *, struct thread *);
+void thread_release_priority (struct thread *);
 
 int thread_get_nice (void);
 void thread_set_nice (int);

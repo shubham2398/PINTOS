@@ -1,18 +1,34 @@
-#include "threads/thread.h"
-
-struct Node {
-	int tid;
-	struct thread *t;
-	struct node next;
-};
+#include "threads/int_list.h"
 
 /* Initializes NODE as an empty list. */
 void
-node_init (struct Node *node, struct thread *t1)
-{
-  	node -> tid = t1 -> tid;
+node_init (struct Node *node, struct thread *t1) {
+  	node -> t = t1;
+  	node -> next = NULL;
 }
 
-void insert(int thread_id, int ptr, struct thread t) {
-	struct Node nptr (thread_id,)
+struct Node *
+node_push_back (struct Node *head, struct thread *t) {
+	struct Node *nptr;
+	node_init(nptr, t);
+	
+	if(head == NULL) {
+		return nptr;
+	}
+	
+	struct Node *ptr = head;
+	while(ptr->next != NULL)
+		ptr = ptr->next;
+	ptr -> next = nptr;
+
+	return head;
+}
+
+struct Node *
+node_pop_front(struct Node **head) {
+	if(*head == NULL)
+		return NULL;
+	struct Node *ptr = *head;
+	*head = (*head) -> next;
+	return ptr;
 }
