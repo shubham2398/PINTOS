@@ -1,5 +1,6 @@
 #include "list.h"
 #include "threads/thread.h"
+#include "threads/synch.h"
 #include "../debug.h"
 
 /* Our doubly linked lists have two header elements: the "head"
@@ -191,9 +192,19 @@ list_insert_priority (struct list *list, struct list_elem *l_elem)
     return;
   }
   struct list_elem *current = list_begin(list);
-  while(!is_tail(current) && thread_get_priority_of(list_entry(current, struct thread, elem))>=thread_get_priority_of(list_entry(l_elem, struct thread, elem)))
+  if(is_thread(list_entry(l_elem, struct thread, elem)))
   {
-  	current = list_next(current);
+    while(!is_tail(current) && thread_get_priority_of(list_entry(current, struct thread, elem))>=thread_get_priority_of(list_entry(l_elem, struct thread, elem)))
+    {
+      current = list_next(current);
+    }    
+  }
+  else
+  {
+    while(!is_tail(current) && list_entry(current, struct semaphore_elem, elem)->priority >= list_entry(l_elem, struct semaphore_elem, elem)->priority)
+    {
+      current = list_next(current);
+    }
   }
   list_insert(current, l_elem);
 }

@@ -44,6 +44,14 @@ void cond_wait (struct condition *, struct lock *);
 void cond_signal (struct condition *, struct lock *);
 void cond_broadcast (struct condition *, struct lock *);
 
+/* One semaphore in a list. */
+struct semaphore_elem 
+  {
+    struct list_elem elem;              /* List element. */
+    struct semaphore semaphore;         /* This semaphore. */
+    int priority;                       /* Priority of CURRENT thread which is trying to take semaphore */
+  };
+
 /* Optimization barrier.
 
    The compiler will not reorder operations across an
