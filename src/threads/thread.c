@@ -342,9 +342,6 @@ thread_set_priority (int new_priority)
 {
   thread_current ()->priority = new_priority;
 
-  enum intr_level old_level;
-  old_level = intr_disable ();
-  intr_set_level (old_level);
   if((list_entry(list_begin(&ready_list), struct thread, elem))->priority > new_priority)
     thread_yield();
 }
