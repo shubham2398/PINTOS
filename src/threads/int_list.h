@@ -10,9 +10,13 @@ struct Node {
 	struct lock *lock;
 };
 
-void node_push_back (struct Node *, struct thread *, struct lock *);
+typedef struct Node *node;
 
-struct Node * node_remove (struct Node *, struct Node *);
+node createNode() ;
+
+node node_push_back (node, struct thread *, struct lock *);
+
+void node_remove (struct Node **, struct Node *);
 
 // struct Node * node_pop_front (struct Node **);
 

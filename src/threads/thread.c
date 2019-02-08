@@ -370,34 +370,13 @@ thread_donate_priority (struct thread *t1, struct thread *t2, struct lock *lock)
 {
   t2 -> curr_priority = thread_get_priority_of(t1);
 
-  if(t1 -> donation_g_list == NULL) {
-  	struct Node nptr1 = {t2, NULL, lock};
-  	t1 -> donation_g_list = &nptr1;
-  }
-  else {
-  	struct Node nptr = {t2, NULL, lock};
-	struct Node *ptr = t1 -> donation_g_list;
-	while(ptr->next != NULL)
-		ptr = ptr->next;
-	ptr -> next = &nptr;
-  }
-  
-  if(t2 -> donation_r_list == NULL) {
-  	struct Node nptr2 = {t1, NULL, lock};
-  	t2 -> donation_r_list = &nptr2;
-  }
-  else {
-  	struct Node nptr = {t1, NULL, lock};
-	struct Node *ptr = t2 -> donation_r_list;
-	while(ptr->next != NULL)
-		ptr = ptr->next;
-	ptr -> next = &nptr;
-  }
+  t1->donation_g_list = node_push_back(t1->donation_g_list, t2, lock);
+  t2->donation_r_list = node_push_back(t2->donation_g_list, t1, lock);
 
   struct Node *ptr = t2 -> donation_g_list;
 
   while (ptr != NULL) 
-  { 
+  {
     thread_donate_priority (t2, ptr->t, lock);
     ptr = ptr->next;
   }
@@ -416,14 +395,18 @@ thread_release_donated_priority (struct thread *t1, struct thread *t2) {
 
   if (ptr!=NULL) {
     if(ptr->next == NULL && ptr->t->tid == t2->tid) {
+      struct Node *tmp = t1->donation_g_list;
       t1->donation_g_list = NULL;
+      free(tmp);
       return;
     }
 
     while(ptr->next!=NULL && ptr->next->t->tid != t2->tid) {
       ptr = ptr->next;
     }
+    struct Node *tmp = ptr->next;
     ptr->next = ptr->next->next;
+    free(tmp);
   }
 }
 
@@ -438,12 +421,14 @@ thread_release_priority (struct thread *t, struct lock *lock) {
   while (ptr->next != NULL)
   {
   	if(ptr->lock == lock) {
-  		t->donation_r_list = node_remove(t->donation_r_list, ptr);
   		thread_release_donated_priority(ptr->t, t);
+      struct Node *tmp = ptr;
   		ptr = ptr->next;
+      node_remove(&(t->donation_r_list), tmp);
   	} else {
-		t -> curr_priority = ((t -> curr_priority >= thread_get_priority_of(ptr->t)) ? (t->curr_priority) : (thread_get_priority_of(ptr->t)));
-	}
+		  t -> curr_priority = ((t -> curr_priority >= thread_get_priority_of(ptr->t)) ? (t->curr_priority) : (thread_get_priority_of(ptr->t)));
+      ptr = ptr->next;
+	  }
   }
 }
 

@@ -1,25 +1,44 @@
 #include "threads/int_list.h"
 
-void
-node_push_back (struct Node *head, struct thread *t, struct lock *lock) {
-	struct Node nptr = {t, NULL, lock};
-
-	struct Node *ptr = head;
-	while(ptr->next != NULL)
-		ptr = ptr->next;
-	ptr -> next = &nptr;
+node createNode() {
+	node tmp;
+	tmp = (node)malloc(sizeof(struct Node));
+	tmp->next = NULL;
+	return tmp;
 }
 
-struct Node *
-node_remove(struct Node *head, struct Node *node) {
-	if(head == node)
-		return head->next;
-	struct Node *ptr = head;
-	while(ptr->next != node) {
+node
+node_push_back (node head, struct thread *t, struct lock *lock) {
+	node tmp, ptr;
+	tmp = createNode();
+	tmp->t = t;
+	tmp->lock = lock;
+
+	if(head == NULL)
+		head = tmp;
+	else {
+		ptr = head;
+		while(ptr->next != NULL) {
+			ptr = ptr->next;
+		}
+		ptr->next = tmp;
+	}
+	return head;
+}
+
+void
+node_remove(struct Node **head, struct Node *nod) {
+	if(*head == nod) {
+		*head = (*head)->next;
+		free(nod);
+		return;
+	}
+	struct Node *ptr = *head;
+	while(ptr->next != nod) {
 		ptr = ptr->next;
 	}
-	ptr->next = ptr->next->next;
-	return head;
+	ptr->next = nod->next;
+	free(nod);
 }
 
 // struct Node *
