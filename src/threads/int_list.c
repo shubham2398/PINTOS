@@ -14,8 +14,9 @@ node_push_back (node head, struct thread *t, struct lock *lock) {
 	tmp->t = t;
 	tmp->lock = lock;
 
-	if(head == NULL)
+	if(head == NULL) {
 		head = tmp;
+	}
 	else {
 		ptr = head;
 		while(ptr->next != NULL) {

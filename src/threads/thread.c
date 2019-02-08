@@ -371,13 +371,22 @@ thread_donate_priority (struct thread *t1, struct thread *t2, struct lock *lock)
   t2 -> curr_priority = thread_get_priority_of(t1);
 
   t1->donation_g_list = node_push_back(t1->donation_g_list, t2, lock);
-  t2->donation_r_list = node_push_back(t2->donation_g_list, t1, lock);
+  t2->donation_r_list = node_push_back(t2->donation_r_list, t1, lock);
+
+  // int cnt = 0;
+  // struct Node *ptr2 = t2->donation_r_list;
+  // while(ptr2!=NULL) {
+  //   ptr2 = ptr2->next;
+  //   cnt += 1;
+  // }
+  // printf("%d\n",cnt);
 
   struct Node *ptr = t2 -> donation_g_list;
 
   while (ptr != NULL) 
   {
-    thread_donate_priority (t2, ptr->t, lock);
+    t1->donation_g_list = node_push_back(t1->donation_g_list, ptr->t, lock);
+    ptr->t->donation_r_list = node_push_back(ptr->t->donation_r_list, t1, lock);
     ptr = ptr->next;
   }
   enum intr_level old_level;
