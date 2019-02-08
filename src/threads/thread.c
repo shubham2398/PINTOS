@@ -343,7 +343,10 @@ void
 thread_set_priority (int new_priority) 
 {
   thread_current ()->priority = new_priority;
-  thread_current ()->curr_priority = new_priority;
+  if(thread_current()->donation_r_list == NULL)
+    thread_current ()->curr_priority = new_priority;
+  else
+    thread_current ()->curr_priority = ((new_priority > thread_current ()->curr_priority)? new_priority : thread_current ()->curr_priority);
 
   if((list_entry(list_begin(&ready_list), struct thread, elem))->priority > new_priority)
     thread_yield();
