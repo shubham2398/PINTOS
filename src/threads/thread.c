@@ -388,8 +388,9 @@ thread_donate_priority (struct thread *t1, struct thread *t2, struct lock *lock)
 
   while (ptr != NULL) 
   {
-    t1->donation_g_list = node_push_back(t1->donation_g_list, ptr->t, lock);
-    ptr->t->donation_r_list = node_push_back(ptr->t->donation_r_list, t1, lock);
+    t1->donation_g_list = node_push_back(t1->donation_g_list, ptr->t, ptr->lock);
+    ptr->t->donation_r_list = node_push_back(ptr->t->donation_r_list, t1, ptr->lock);
+    ptr->t->curr_priority = thread_get_priority_of(t1);
     ptr = ptr->next;
   }
   enum intr_level old_level;
