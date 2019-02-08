@@ -183,6 +183,8 @@ thread_create (const char *name, int priority,
   /* Initialize thread. */
   init_thread (t, name, priority);
   tid = t->tid = allocate_tid ();
+  t->donation_r_list = NULL;
+  t->donation_g_list = NULL;
 
   /* Stack frame for kernel_thread(). */
   kf = alloc_frame (t, sizeof *kf);
@@ -364,17 +366,39 @@ thread_get_priority_of (struct thread *t)
 /* The thread t1 recursively donates its priority to the thread t2 and all other 
    threads to whom t2 has donated its priority*/
 void
-thread_donate_priority (struct thread *t1, struct thread *t2)
+thread_donate_priority (struct thread *t1, struct thread *t2, struct lock *lock)
 {
   t2 -> curr_priority = thread_get_priority_of(t1);
-  t1 -> donation_g_list = node_push_back(t1 -> donation_g_list, t2);
-  t2 -> donation_r_list = node_push_back(t2 -> donation_r_list, t1);
+
+  if(t1 -> donation_g_list == NULL) {
+  	struct Node nptr1 = {t2, NULL, lock};
+  	t1 -> donation_g_list = &nptr1;
+  }
+  else {
+  	struct Node nptr = {t2, NULL, lock};
+	struct Node *ptr = t1 -> donation_g_list;
+	while(ptr->next != NULL)
+		ptr = ptr->next;
+	ptr -> next = &nptr;
+  }
   
+  if(t2 -> donation_r_list == NULL) {
+  	struct Node nptr2 = {t1, NULL, lock};
+  	t2 -> donation_r_list = &nptr2;
+  }
+  else {
+  	struct Node nptr = {t1, NULL, lock};
+	struct Node *ptr = t2 -> donation_r_list;
+	while(ptr->next != NULL)
+		ptr = ptr->next;
+	ptr -> next = &nptr;
+  }
+
   struct Node *ptr = t2 -> donation_g_list;
 
   while (ptr != NULL) 
   { 
-    thread_donate_priority (t2, ptr->t);
+    thread_donate_priority (t2, ptr->t, lock);
     ptr = ptr->next;
   }
   enum intr_level old_level;
@@ -401,17 +425,25 @@ thread_release_donated_priority (struct thread *t1, struct thread *t2) {
     }
     ptr->next = ptr->next->next;
   }
-
 }
 
 void
-thread_release_priority (struct thread *t) {
+thread_release_priority (struct thread *t, struct lock *lock) {
   t -> curr_priority = t -> priority;
   struct Node *ptr = t->donation_r_list;
-  while (ptr != NULL)
+
+  if(ptr == NULL)
+  	return;
+
+  while (ptr->next != NULL)
   {
-    struct Node *nptr = node_pop_front (&ptr);
-    thread_release_donated_priority(nptr->t, t);
+  	if(ptr->lock == lock) {
+  		t->donation_r_list = node_remove(t->donation_r_list, ptr);
+  		thread_release_donated_priority(ptr->t, t);
+  		ptr = ptr->next;
+  	} else {
+		t -> curr_priority = ((t -> curr_priority >= thread_get_priority_of(ptr->t)) ? (t->curr_priority) : (thread_get_priority_of(ptr->t)));
+	}
   }
 }
 
@@ -565,8 +597,8 @@ init_thread (struct thread *t, const char *name, int priority)
   list_push_back (&all_list, &t->allelem);
   intr_set_level (old_level);
 
-  t->donation_r_list = NULL;
-  t->donation_g_list = NULL;
+  // t->donation_r_list = NULL;
+  // t->donation_g_list = NULL;
 }
 
 /* Allocates a SIZE-byte frame at the top of thread T's stack and

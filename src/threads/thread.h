@@ -5,6 +5,7 @@
 #include <list.h>
 #include <stdint.h>
 #include <inttypes.h>
+#include "threads/synch.h"
 #include "threads/int_list.h"
 
 /* States in a thread's life cycle. */
@@ -88,7 +89,7 @@ struct thread
     tid_t tid;                          /* Thread identifier. */
     enum thread_status status;          /* Thread state. */
     char name[16];                      /* Name (for debugging purposes). */
-    uint8_t *stack;                     /* Saved stack pointer. */
+    uint8_t *stack;                     /* Saved stack pointesema_upr. */
     int curr_priority;                  /* Current highest received priority. When no donation is received, this is equal to defualt priority */
     int priority;                       /* Default Priority. */
     struct list_elem allelem;           /* List element for all threads list. */
@@ -143,9 +144,9 @@ void thread_foreach (thread_action_func *, void *);
 int thread_get_priority (void);
 int thread_get_priority_of (struct thread *);
 void thread_set_priority (int);
-void thread_donate_priority (struct thread *, struct thread *);
+void thread_donate_priority (struct thread *, struct thread *, struct lock *);
 void thread_release_donated_priority (struct thread *, struct thread *);
-void thread_release_priority (struct thread *);
+void thread_release_priority (struct thread *, struct lock *);
 
 int thread_get_nice (void);
 void thread_set_nice (int);

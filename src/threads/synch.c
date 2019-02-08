@@ -258,8 +258,9 @@ lock_acquire (struct lock *lock)
 
   old_level = intr_disable ();
 
-  //if(lock->semaphore.value==0)
-  //  thread_donate_priority(thread_current(),lock->holder);
+  if(lock->semaphore.value==0) {
+    thread_donate_priority(thread_current(), lock->holder, lock);
+  }
   sema_down (&lock->semaphore);
 
   intr_set_level (old_level);
@@ -302,7 +303,7 @@ lock_release (struct lock *lock)
 
   old_level = intr_disable ();
 
-  //thread_release_priority(lock->holder);
+  thread_release_priority(lock->holder, lock);
   lock->holder = NULL;
   sema_up (&lock->semaphore);
 
