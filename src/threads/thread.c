@@ -415,18 +415,19 @@ thread_release_priority (struct thread *t, struct lock *lock) {
   t -> curr_priority = t -> priority;
   struct Node *ptr = t->donation_r_list;
 
-  if(ptr == NULL)
-  	return;
+  if(ptr == NULL) {
+    return;
+  }
 
-  while (ptr->next != NULL)
+  while (ptr != NULL)
   {
   	if(ptr->lock == lock) {
-  		thread_release_donated_priority(ptr->t, t);
+      thread_release_donated_priority(ptr->t, t);
       struct Node *tmp = ptr;
   		ptr = ptr->next;
       node_remove(&(t->donation_r_list), tmp);
   	} else {
-		  t -> curr_priority = ((t -> curr_priority >= thread_get_priority_of(ptr->t)) ? (t->curr_priority) : (thread_get_priority_of(ptr->t)));
+      t -> curr_priority = ((t -> curr_priority >= thread_get_priority_of(ptr->t)) ? (t->curr_priority) : (thread_get_priority_of(ptr->t)));
       ptr = ptr->next;
 	  }
   }
