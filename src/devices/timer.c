@@ -24,9 +24,6 @@ static int64_t ticks;
 /* The list of sleeping threads. */
 static struct list sleep_list;
 
-/* The lock to held while modifying list of sleeping threads */
-static struct lock sleep_lock;
-
 /* Number of loops per timer tick.
    Initialized by timer_calibrate(). */
 static unsigned loops_per_tick;
@@ -47,7 +44,6 @@ timer_init (void)
   pit_configure_channel (0, 2, TIMER_FREQ);
   intr_register_ext (0x20, timer_interrupt, "8254 Timer");
   list_init(&sleep_list);
-  lock_init(&sleep_lock);
 }
 
 /* Calibrates loops_per_tick, used to implement brief delays. */
@@ -266,9 +262,7 @@ add_to_sleep_list(void)
   ASSERT (!intr_context ());
 
   old_level = intr_disable ();
-  lock_acquire(&sleep_lock);
   list_insert_priority (&sleep_list, &thread_current ()->elem, "wakeup_tick");
-  lock_release(&sleep_lock);
   thread_block ();
 
   intr_set_level (old_level);
