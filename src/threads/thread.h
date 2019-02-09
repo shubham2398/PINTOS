@@ -7,6 +7,7 @@
 #include <inttypes.h>
 #include "threads/synch.h"
 #include "threads/int_list.h"
+#include "threads/malloc.h"
 
 /* States in a thread's life cycle. */
 enum thread_status

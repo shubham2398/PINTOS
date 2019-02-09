@@ -353,7 +353,7 @@ thread_set_priority (int new_priority)
     thread_current ()->curr_priority = ((new_priority > thread_current ()->curr_priority)? new_priority : thread_current ()->curr_priority);
 
   intr_set_level(old_level);
-  
+
   if((list_entry(list_begin(&ready_list), struct thread, elem))->priority > new_priority)
     thread_yield();
 }
@@ -372,23 +372,17 @@ thread_get_priority_of (struct thread *t)
   return t->curr_priority;
 }
 
-/* The thread t1 recursively donates its priority to the thread t2 and all other 
-   threads to whom t2 has donated its priority*/
+/* The thread t1 donates its priority to the thread t2 and all other 
+   threads to whom t2 has donated its priority. It must be called by lock_acquire 
+   and hence must be called with interrupts off. */
 void
 thread_donate_priority (struct thread *t1, struct thread *t2, struct lock *lock)
-{
+{ 
+  ASSERT(intr_get_level()==INTR_OFF);
   t2 -> curr_priority = thread_get_priority_of(t1);
 
   t1->donation_g_list = node_push_back(t1->donation_g_list, t2, lock);
   t2->donation_r_list = node_push_back(t2->donation_r_list, t1, lock);
-
-  // int cnt = 0;
-  // struct Node *ptr2 = t2->donation_r_list;
-  // while(ptr2!=NULL) {
-  //   ptr2 = ptr2->next;
-  //   cnt += 1;
-  // }
-  // printf("%d\n",cnt);
 
   struct Node *ptr = t2 -> donation_g_list;
 
@@ -408,8 +402,11 @@ thread_donate_priority (struct thread *t1, struct thread *t2, struct lock *lock)
   intr_set_level(old_level); 
 }
 
+/* Thread t1 removes thread t2 from its donation_g_list. It is called from 
+   thread_release_priority and hence must be called with interrupts off. */
 void 
 thread_release_donated_priority (struct thread *t1, struct thread *t2) {
+  ASSERT(intr_get_level()==INTR_OFF);
   struct Node *ptr = t1->donation_g_list;
 
   if (ptr!=NULL) {
@@ -429,8 +426,13 @@ thread_release_donated_priority (struct thread *t1, struct thread *t2) {
   }
 }
 
+/* It restores the default priority of thread T and removes the threads who donated their priority 
+   for the lock LOCK from donation_r_list. It will then modify its current priority to the maximum 
+   of priorities donated to it under other locks. 
+   It must be called by lock_release and hence must be called with interrupts off.*/
 void
 thread_release_priority (struct thread *t, struct lock *lock) {
+  ASSERT(intr_get_level()==INTR_OFF);
   t -> curr_priority = t -> priority;
   struct Node *ptr = t->donation_r_list;
 
@@ -602,8 +604,6 @@ init_thread (struct thread *t, const char *name, int priority)
   list_push_back (&all_list, &t->allelem);
   intr_set_level (old_level);
 
-  // t->donation_r_list = NULL;
-  // t->donation_g_list = NULL;
 }
 
 /* Allocates a SIZE-byte frame at the top of thread T's stack and
