@@ -1,6 +1,7 @@
 #include "threads/int_list.h"
+#include "threads/malloc.h"
 
-node createNode() {
+node createNode(void) {
 	node tmp;
 	tmp = (node)malloc(sizeof(struct Node));
 	tmp->next = NULL;

@@ -2,6 +2,7 @@
 #include "threads/thread.h"
 #include "threads/synch.h"
 #include "../debug.h"
+#include "../string.h"
 
 /* Our doubly linked lists have two header elements: the "head"
    just before the first element and the "tail" just after the
@@ -182,7 +183,7 @@ list_insert (struct list_elem *before, struct list_elem *elem)
 /* Inserts ELEM in the LIST list according to its priority, with the most
    prioritised element as the first element of the list and so on. */
 void
-list_insert_priority (struct list *list, struct list_elem *l_elem)
+list_insert_priority (struct list *list, struct list_elem *l_elem, char * what)
 {
   ASSERT (list != NULL);
   ASSERT (l_elem != NULL);
@@ -193,11 +194,17 @@ list_insert_priority (struct list *list, struct list_elem *l_elem)
   }
   struct list_elem *current = list_begin(list);
   if(is_thread(list_entry(l_elem, struct thread, elem)))
-  {
-    while(!is_tail(current) && thread_get_priority_of(list_entry(current, struct thread, elem))>=thread_get_priority_of(list_entry(l_elem, struct thread, elem)))
-    {
-      current = list_next(current);
-    }    
+  { if(strcmp(what,"priority")==0)
+      while(!is_tail(current) && thread_get_priority_of(list_entry(current, struct thread, elem))>=thread_get_priority_of(list_entry(l_elem, struct thread, elem)))
+      {
+        current = list_next(current);
+      }
+    else if(strcmp(what,"wakeup_tick")==0) 
+      while(!is_tail(current) && list_entry(current, struct thread, elem)->wakeup_tick>=list_entry(l_elem, struct thread, elem)->wakeup_tick)
+      {
+        current = list_next(current);
+      }
+    else ASSERT(false);   
   }
   else
   {

@@ -12,7 +12,7 @@ struct Node {
 
 typedef struct Node *node;
 
-node createNode() ;
+node createNode(void) ;
 
 node node_push_back (node, struct thread *, struct lock *);
 
