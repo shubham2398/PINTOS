@@ -268,7 +268,9 @@ add_to_sleep_list(void)
   intr_set_level (old_level);
 }
 
-/* Wakes the threads in sleep_list which can be waked i.e. who have slept sleep number of ticks */
+/* Wakes the threads in sleep_list which can be waked i.e. who have slept the time
+   till which they had to sleep. 
+   It must be called from timer_interrupt hence we assert that it is in interrupt context. */
 static void 
 wake_threads_which_can_be_waked(int64_t ticks)
 {

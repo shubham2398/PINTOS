@@ -155,7 +155,6 @@ int thread_get_recent_cpu (void);
 int thread_get_load_avg (void);
 
 void thread_set_wakeup_tick(int64_t);
-int64_t thread_get_wakeup_tick(void);
 bool thread_try_wakeup(struct thread *,int64_t);
 
 #endif /* threads/thread.h */
