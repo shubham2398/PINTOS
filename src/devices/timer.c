@@ -6,8 +6,8 @@
 #include <stdarg.h>
 #include "devices/pit.h"
 #include "threads/interrupt.h"
-#include "threads/synch.h"
 #include "threads/thread.h"
+#include "lib/kernel/list.h"
   
 /* See [8254] for hardware details of the 8254 timer chip. */
 
@@ -21,8 +21,11 @@
 /* Number of timer ticks since OS booted. */
 static int64_t ticks;
 
-/* The semaphore used for threads to wait */
-static struct semaphore sleep_sema;
+/* The list of sleeping threads. */
+static struct list sleep_list;
+
+/* The lock to held while modifying list of sleeping threads */
+static struct lock sleep_lock;
 
 /* Number of loops per timer tick.
    Initialized by timer_calibrate(). */
@@ -33,6 +36,8 @@ static bool too_many_loops (unsigned loops);
 static void busy_wait (int64_t loops);
 static void real_time_sleep (int64_t num, int32_t denom);
 static void real_time_delay (int64_t num, int32_t denom);
+static void add_to_sleep_list(void);
+static void wake_threads_which_can_be_waked(int64_t ticks);
 
 /* Sets up the timer to interrupt TIMER_FREQ times per second,
    and registers the corresponding interrupt. */
@@ -41,7 +46,8 @@ timer_init (void)
 {
   pit_configure_channel (0, 2, TIMER_FREQ);
   intr_register_ext (0x20, timer_interrupt, "8254 Timer");
-  sema_init(&sleep_sema,0);
+  list_init(&sleep_list);
+  lock_init(&sleep_lock);
 }
 
 /* Calibrates loops_per_tick, used to implement brief delays. */
@@ -98,7 +104,7 @@ timer_sleep (int64_t ticks)
 
   ASSERT (intr_get_level () == INTR_ON);
   thread_set_wakeup_tick(start+ticks);
-  sema_sleep(&sleep_sema);
+  add_to_sleep_list();
 }
 
 /* Sleeps for approximately MS milliseconds.  Interrupts must be
@@ -177,7 +183,7 @@ timer_interrupt (struct intr_frame *args UNUSED)
 {
   ticks++;
   thread_tick ();
-  sema_wake(&sleep_sema,ticks);
+  wake_threads_which_can_be_waked(ticks);
 }
 
 /* Returns true if LOOPS iterations waits for more than one timer
@@ -249,4 +255,57 @@ real_time_delay (int64_t num, int32_t denom)
      the possibility of overflow. */
   ASSERT (denom % 1000 == 0);
   busy_wait (loops_per_tick * num / 1000 * TIMER_FREQ / (denom / 1000)); 
+}
+
+/* Adds the current thread to the sleep_list so that it sleeps for a given amount of ticks
+   till it is waked by wake_threads_which_can_be_waked routine from timer interrupt */
+static void
+add_to_sleep_list(void)
+{
+  enum intr_level old_level;
+  ASSERT (!intr_context ());
+
+  old_level = intr_disable ();
+  lock_acquire(&sleep_lock);
+  list_insert_priority (&sleep_list, &thread_current ()->elem, "wakeup_tick");
+  lock_release(&sleep_lock);
+  thread_block ();
+
+  intr_set_level (old_level);
+}
+
+/* Wakes the threads in sleep_list which can be waked i.e. who have slept sleep number of ticks */
+static void 
+wake_threads_which_can_be_waked(int64_t ticks)
+{
+  enum intr_level old_level;
+
+  ASSERT(intr_context());
+
+  old_level = intr_disable ();
+
+  if (!list_empty (&sleep_list))
+  {
+    struct list_elem *e = list_tail (&sleep_list);
+    struct list_elem *temp;
+
+    e = list_prev (e);
+    while (e != list_rend (&sleep_list) && list_entry (e,struct thread,elem)->wakeup_tick <= ticks) 
+    { 
+      if(thread_try_wakeup (list_entry (e,struct thread,elem),ticks))
+      { 
+        temp = e;
+        e = list_prev (e);
+        list_remove (temp);
+        thread_unblock(list_entry(temp,struct thread,elem));
+        if(thread_get_priority() < thread_get_priority_of(list_entry(temp,struct thread,elem)))
+          intr_yield_on_return();
+      }
+
+      else
+        e = list_prev (e);
+    }
+  }
+
+  intr_set_level (old_level);
 }

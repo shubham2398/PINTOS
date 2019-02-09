@@ -77,58 +77,6 @@ sema_down (struct semaphore *sema)
   intr_set_level (old_level);
 }
 
-/* Makes the current thread sleep on the wait list of SEMA until
-   some other thread wakes it using sema_wake */
-void sema_sleep(struct semaphore *sema)
-{
-  enum intr_level old_level;
-
-  ASSERT (sema != NULL);
-  ASSERT (!intr_context ());
-
-  old_level = intr_disable ();
-  list_insert_priority (&sema->waiters, &thread_current ()->elem, "wakeup_tick");
-  thread_block ();
-
-  intr_set_level (old_level);
-}
-
-/* Wakes up all threads which can be woken up at TICKS tick. */
-void sema_wake(struct semaphore *sema, int64_t ticks)
-{
-  enum intr_level old_level;
-
-  ASSERT (sema != NULL);
-
-  old_level = intr_disable ();
-  if (!list_empty (&sema->waiters))
-  {
-    struct list_elem *e = list_tail (&sema->waiters);
-    struct list_elem *temp;
-    e = list_prev (e);
-    while (e != list_rend (&sema->waiters)) 
-    { 
-      if(list_entry (e,struct thread,elem)->wakeup_tick > ticks)
-        break;
-      bool success = thread_try_wakeup (list_entry (e,struct thread,elem),ticks);
-      if(success)
-      { 
-        temp = e;
-        e = list_prev (e);
-        list_remove (temp);
-        thread_unblock(list_entry(temp,struct thread,elem));
-        if(thread_get_priority() < thread_get_priority_of(list_entry(temp,struct thread,elem)))
-          intr_yield_on_return();
-      }
-      else
-      {
-        e = list_prev (e);
-      }
-    }
-  } 
-  intr_set_level (old_level);
-}
-
 /* Down or "P" operation on a semaphore, but only if the
    semaphore is not already 0.  Returns true if the semaphore is
    decremented, false otherwise.
